@@ -24,27 +24,27 @@ NPC
 #include <cstdlib>
 #include "Map.h"
 
-void PieceClass::Render(MQO_MODEL &MyModel){
+void PieceClass::Render(MQO_MODEL MyModel[]){
 
     for (int i=0;i<Piece_Height;i++)
 	for (int j=0;j<Piece_Width;j++)
 	    if(Piece[j][i]==true){
 		glPushMatrix();
-		glTranslatef(block_size*(j+pos_x),-block_size*(i+pos_y),50.0f);
-		mqoCallModel(MyModel);
+		glTranslatef(block_size*(j+pos_x),-block_size*(i+pos_y),Map_depth);
+		mqoCallModel(MyModel[PieceColor]);
 		glPopMatrix();
 	    }
 
 }
 
-void FieldClass::Render(MQO_MODEL &MyModel){
+void FieldClass::Render(MQO_MODEL MyModel[]){
 
     for (int i=0;i<Map_Height;i++)
 	for (int j=0;j<Map_Width;j++)
 	    if(Field[j][i]==true){
 		glPushMatrix();
-		glTranslatef(block_size*j,-block_size*i,50.0f);
-		mqoCallModel(MyModel);
+		glTranslatef(block_size*j,-block_size*i,Map_depth);
+		mqoCallModel( MyModel[FieldColor[j][i]] );
 		glPopMatrix();
 	    }
 
@@ -55,6 +55,13 @@ void PieceClass::CreatePiece(){
 
     switch(rand()%7){
 	//何ケースあるのか　不明 14
+	/*
+	Color
+	0 green
+	1 blue
+	2 red
+	3 purple
+	*/
 case 1:
     next_Piece[1][1]=next_Piece[2][1]=next_Piece[1][2]=next_Piece[2][2]=true;
     break;
@@ -76,7 +83,22 @@ case 6:
 case 0:
     next_Piece[1][1]=next_Piece[2][1]=next_Piece[0][1]=next_Piece[1][0]=true;
     }
+
+    next_PieceColor=rand()%4;
+
 }
+
+bool GameOverCheck(FieldClass &f,PieceClass &p){
+
+    for(int i=0;i<Piece_Width;i++)
+	for (int j=0;j<Piece_Height;j++)
+	    if(p.Piece[i][j])
+		if(f.Field[p.pos_x+i][p.pos_y+j]==true)
+		    return true;
+
+return false;
+}
+
 void MovePiece(int KeyDown,FieldClass &f_obj,PieceClass &p_obj){
     //Stop and write Filed method is not written yet......
     int x_limit;
@@ -94,7 +116,7 @@ case 2:
 		    check_count++;
 	    }
 
-	    if(p_obj.Piece[x_limit-1][i])
+	    if(p_obj.Piece[x_limit+1][i])
 		if(f_obj.Field[x_limit+p_obj.pos_x][i+p_obj.pos_y]==true)
 		    count=0;//この処理は　美しくない
 	}
@@ -113,10 +135,9 @@ case 3:
 	    if(p_obj.Piece[i][y_limit-1])
 		if(f_obj.Field[i+p_obj.pos_x][y_limit+p_obj.pos_y]==true){
 		    count=0;//この処理は　美しくない
-                    break;
+		    break;
 		}
 	}
-
 
 	if(check_count==count && check_count!=0 && count!=0)
 	    p_obj.pos_y++;
@@ -124,10 +145,12 @@ case 3:
 
 	    for(int i=0;i<Piece_Width;i++)
 		for(int j=0;j<Piece_Height;j++)
-		    if(p_obj.Piece[i][j])
+		    if(p_obj.Piece[i][j]){
 			f_obj.Field[i+p_obj.pos_x][j+p_obj.pos_y]=p_obj.Piece[i][j];
-	    p_obj.CreatePiece();
-	    p_obj.SwapPiece();
+			f_obj.FieldColor[i+p_obj.pos_x][j+p_obj.pos_y]=p_obj.PieceColor;
+		    }
+		    p_obj.CreatePiece();
+		    p_obj.SwapPiece();
 
 	}
 	//p_obj.pos_x++;
@@ -141,18 +164,16 @@ case 4:
 		if(f_obj.Field[p_obj.pos_x + x_limit + 1][p_obj.pos_y+i]==false)
 		    check_count++;
 	    }
-	    if(p_obj.Piece[x_limit+1][i])
+	    if(p_obj.Piece[x_limit-1][i])
 		if(f_obj.Field[x_limit+p_obj.pos_x][i+p_obj.pos_y]==true){
 		    count=0;//この処理は　美しくない
-break;
+		    break;
 		}
 	}
 	if(check_count==count  && check_count!=0 && count!=0)
 	    p_obj.pos_x++;
 	break;
     }
-
-
 
 }
 
@@ -197,6 +218,7 @@ void PieceClass::SwapPiece(){
 	}
 
 	pos_x=pos_y=0;
+	PieceColor=next_PieceColor;
 
 }
 DelInfo FieldClass::deletePiece(){
@@ -220,7 +242,7 @@ DelInfo FieldClass::deletePiece(){
 
     return Del;
 }
-void FieldClass::ShiftPiece(DelInfo del){
+int FieldClass::ShiftPiece(DelInfo del){
     int shift_num=del.del_num;
     int count=0;
     for(int j=del.del_y;j>=0;j--){
@@ -229,9 +251,13 @@ void FieldClass::ShiftPiece(DelInfo del){
 
 	if(count==0)break;
 
-	for(int i=0;i<Map_Width;i++)
+	for(int i=0;i<Map_Width;i++){
 	    Field[i][j+del.del_num]=Field[i][j],Field[i][j]=false;
+	    FieldColor[i][j+del.del_num]=FieldColor[i][j];
+	}
     }
+
+return del.del_num*10;
 }
 /* 5 block ver
 void RolePiece(int KeyDown,FieldClass &f_obj,PieceClass &p_obj){
@@ -276,6 +302,7 @@ void RolePiece(int KeyDown,FieldClass &f_obj,PieceClass &p_obj){
 	    }
 
 	    PieceClass tmp;
+	    tmp.PieceColor=p_obj.PieceColor;
 	    tmp.pos_x=p_obj.pos_x;
 	    tmp.pos_y=p_obj.pos_y;
 
@@ -287,4 +314,9 @@ void RolePiece(int KeyDown,FieldClass &f_obj,PieceClass &p_obj){
 		}	
 
 		p_obj=tmp;
+}
+
+void FieldClass::Init(){
+memset(Field,'\0',sizeof(Field));
+memset(FieldColor,'\0',sizeof(FieldColor));
 }
