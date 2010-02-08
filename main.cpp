@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #define qDEBUG
 
 #ifdef DEBUG
@@ -14,6 +15,12 @@
 #pragma comment(lib,"freetype2311.lib")
 #pragma comment(lib,"libiconv.lib")
 
+#else
+#include <time.h>
+#include <sys/time.h>
+
+#endif
+
 #include<cstdio>
 #include"Map.h"
 #include<AR/ar.h>
@@ -27,8 +34,12 @@
 
 //config file or model data name
 const char* FONT="Data/PLANA___.TTF";
+#ifdef _WIN32
 char *vconf_name="Data/WDM_camera_flipV.xml";
-char *pattern_name="Data/patt.hiro";
+#else
+char *vconf_name="dev=/dev/video1";
+#endif
+char *pattern_name="Data/patt.mine";
 char *cparam_name="Data/camera_para.dat";
 char *wall_name="Data/Model/wall.mqo";
 //patt config
@@ -43,7 +54,9 @@ MQO_MODEL Box[box_variey_num];
 MQO_MODEL WallModel;
 FTFont *font;
 
-
+#ifndef _WIN32
+typedef unsigned long DWORD;
+#endif
 //extra parameter
 DWORD dwTime;
 static const DWORD FPS=30;
@@ -52,27 +65,55 @@ bool GameOver=false;
 int score;
 const float FONT_SIZE=10.0;
 // prototype method
-void Wait(DWORD);
-void FPSCount(DWORD*);
 
 void MainLoop();
 void KeyEvent(unsigned char key,int x,int y);
 void MouseEvent(int button,int state,int x,int y);
+int  Data_Load();
 void InitGame();
-void CleanUp();
-void DrawObject();
 void SetLight();
 void SetMaterial();
-int  Data_Load();
+void DrawObject();
+void CleanUp();
 int convert(char *inbuf, char *outbuf, size_t os);
 void drawString(FTFont *font, char *str);
-//class ,struct declaretion
+//object declaration
 FieldClass f;
 PieceClass p;
 nyar_NyARTransMat_O2_t *nyobj;
 
-int main(int argc,char**argv){
+#ifndef _WIN32
+double gettimeofday_sec()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec + (double)tv.tv_usec*1e-6;
+}
+#endif
 
+void Wait(DWORD wait_time){
+    DWORD start_time=timeGetTime();
+    while(timeGetTime()<wait_time +start_time)
+	if(wait_time>0)Sleep(1);
+
+}
+
+void FPSCount(DWORD * fps){
+
+    static DWORD before=timeGetTime();
+    DWORD now=timeGetTime();
+    static DWORD fps_ctr=0;
+
+    if(now-before>=1000){
+	before=now;
+	*fps=fps_ctr;
+	fps_ctr=0;
+
+    }
+    fps_ctr++;
+}
+
+int main(int argc,char**argv){
 
     ARParam cparam;
     ARParam wparam;
@@ -90,7 +131,6 @@ int main(int argc,char**argv){
 	puts("パラメータ読み込み失敗");
 	return -1;
     }
-
 
     arParamChangeSize(&wparam,xsize,ysize,&cparam);
     arInitCparam(&cparam);
@@ -111,13 +151,15 @@ int main(int argc,char**argv){
     InitGame();
 
     arUtilTimerReset();
+#ifdef _WIN32
     TIMECAPS Caps;
     timeGetDevCaps(&Caps, sizeof(TIMECAPS)); // 性能取得
     timeBeginPeriod(Caps.wPeriodMin);
-
+#endif
     argMainLoop(MouseEvent,KeyEvent,MainLoop);
-
+#ifdef _WIN32
     timeEndPeriod(Caps.wPeriodMin);
+#endif
     nyar_NyARTransMat_O2_free(nyobj);
     return 0;
 
@@ -145,39 +187,20 @@ int  Data_Load(){
 	puts("WallModel is not found");
 	return -1;
     }
-    for(int i=0;i<box_variey_num;i++)
-	delete [] strbox[i];
-    delete [] strbox;
 
     font =new FTGLPolygonFont(FONT);
     if(font->Error())exit(1);
     if(!font->FaceSize(FONT_SIZE))exit(1);
     if(!font->CharMap(ft_encoding_unicode))exit(1);
 
+
+    for(int i=0;i<box_variey_num;i++)
+	delete [] strbox[i];
+    delete [] strbox;
+
     return 0;
 }
-void Wait(DWORD wait_time){
-    DWORD start_time=timeGetTime();
-    while(timeGetTime()<wait_time +start_time)
-	if(wait_time>0)Sleep(1);
 
-}
-
-void FPSCount(DWORD * fps){
-
-    static DWORD before=timeGetTime();
-    DWORD now=timeGetTime();
-    static DWORD fps_ctr=0;
-
-    if(now-before>=1000){
-	before=now;
-	*fps=fps_ctr;
-	fps_ctr=0;
-
-    }
-    fps_ctr++;
-
-}
 
 void InitGame(){
     f.Init();
@@ -192,9 +215,14 @@ void MainLoop()
 {
     //QueryPerformanceFrequency(&nFreq);
     //QueryPerformanceCounter(&nBefore);
+    
     DWORD StartTime,EndTime,PassTime;
-
+#ifdef _WIN32
     StartTime=timeGetTime();
+#else
+    double l_StartTime,l_EndTime,l_PassTime;
+    l_StartTime=gettimeofday_sec();
+#endif
     ARUint8		*image;
     ARMarkerInfo	*marker_info;
     int			 marker_num;
@@ -247,16 +275,18 @@ void MainLoop()
     }
 
     argSwapBuffers();
+#ifdef _WIN32
     EndTime=timeGetTime();
     PassTime=EndTime-StartTime;
+#else
+l_EndTime=gettimeofday_sec();
+l_PassTime=l_EndTime-l_StartTime;
+PassTime=(DWORD)1000.0*l_PassTime;
+#endif
     (1000/FPS>PassTime)?Wait(1000/FPS-PassTime):Wait(0);
     FPSCount(&fps);
     printf("FPS=%d\n",fps);
-    // printf("TIME=%d\n",1000/PassTime);
 
-    //QueryPerformanceCounter(&nAfter);
-    //dwTime = (DWORD)((nAfter.QuadPart - nBefore.QuadPart) * 1000 / nFreq.QuadPart);
-    //printf("%d fps\n", 1000/dwTime);
 }
 
 void WallRender(){
@@ -304,8 +334,8 @@ void DrawObject()
 {
     char *str1="Score ";
     char *str2="GameOver";
-char buf[16];
-sprintf(buf,"%d",score);
+    char buf[16];
+    sprintf(buf,"%d",score);
     double gl_para[16];
     argDrawMode3D();
     argDraw3dCamera(0, 0);
@@ -361,7 +391,6 @@ void SetMaterial(){
     glMaterialfv(GL_BACK,GL_SPECULAR,mat_specular);
     glMaterialfv(GL_BACK,GL_AMBIENT,mat_ambient);
     glMaterialfv(GL_BACK,GL_SHININESS,shine);
-
 
 
 }
