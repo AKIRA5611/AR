@@ -100,7 +100,7 @@ void Wait(double wait_time){
 void FPSCount(DWORD* fps){
 
     static double before=gettimeofday_sec();
-    dobule now=gettimeofday_sec();
+    double now=gettimeofday_sec();
     static DWORD fps_ctr=0;
 
     if(now-before>=1.000){
@@ -193,10 +193,10 @@ int  Data_Load(){
     for(int i=0;i<box_variey_num;i++)
 	strbox[i]=new char [32];
 
-    strcpy_s(strbox[0],32,"Data/Model/box.mqo");
-    strcpy_s(strbox[1],32,"Data/Model/bluebox.mqo");
-    strcpy_s(strbox[2],32,"Data/Model/redbox.mqo");
-    strcpy_s(strbox[3],32,"Data/Model/purplebox.mqo");
+    strcpy(strbox[0],"Data/Model/box.mqo");
+    strcpy(strbox[1],"Data/Model/bluebox.mqo");
+    strcpy(strbox[2],"Data/Model/redbox.mqo");
+    strcpy(strbox[3],"Data/Model/purplebox.mqo");
 
     for(int i=0;i<box_variey_num;i++){
 	Box[i]=mqoCreateModel(strbox[i],0.05);
