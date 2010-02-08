@@ -31,9 +31,9 @@
 #include<FTGL/FTGLPolygonFont.h>
 #include <iconv.h>
 
-
 //config file or model data name
 const char* FONT="Data/PLANA___.TTF";
+
 #ifdef _WIN32
 char *vconf_name="Data/WDM_camera_flipV.xml";
 #else
@@ -89,8 +89,30 @@ double gettimeofday_sec()
     gettimeofday(&tv, NULL);
     return tv.tv_sec + (double)tv.tv_usec*1e-6;
 }
-#endif
 
+void Wait(double wait_time){
+    double start_time=gettimeofday_sec();
+    while(gettimeofday_sec()<wait_time+start_time)
+	if(wait_time>0)sleep(1);
+}
+//overload!!
+
+void FPSCount(DWORD* fps){
+
+    static double before=gettimeofday_sec();
+    dobule now=gettimeofday_sec();
+    static DWORD fps_ctr=0;
+
+    if(now-before>=1.000){
+	before=now;
+	*fps=fps_ctr;
+	fps_ctr=0;
+
+    }
+    fps_ctr++;
+}
+
+#else
 void Wait(DWORD wait_time){
     DWORD start_time=timeGetTime();
     while(timeGetTime()<wait_time +start_time)
@@ -108,10 +130,11 @@ void FPSCount(DWORD * fps){
 	before=now;
 	*fps=fps_ctr;
 	fps_ctr=0;
-
     }
     fps_ctr++;
 }
+
+#endif
 
 int main(int argc,char**argv){
 
@@ -209,18 +232,18 @@ void InitGame(){
     score =0;
     GameOver=false;
     isFirst=true;
-
 }
+
 void MainLoop()
 {
     //QueryPerformanceFrequency(&nFreq);
     //QueryPerformanceCounter(&nBefore);
     
     DWORD StartTime,EndTime,PassTime;
+    double l_StartTime,l_EndTime,l_PassTime;
 #ifdef _WIN32
     StartTime=timeGetTime();
 #else
-    double l_StartTime,l_EndTime,l_PassTime;
     l_StartTime=gettimeofday_sec();
 #endif
     ARUint8		*image;
@@ -278,15 +301,17 @@ void MainLoop()
 #ifdef _WIN32
     EndTime=timeGetTime();
     PassTime=EndTime-StartTime;
-#else
-l_EndTime=gettimeofday_sec();
-l_PassTime=l_EndTime-l_StartTime;
-PassTime=(DWORD)1000.0*l_PassTime;
-#endif
     (1000/FPS>PassTime)?Wait(1000/FPS-PassTime):Wait(0);
     FPSCount(&fps);
     printf("FPS=%d\n",fps);
-
+#else
+l_EndTime=gettimeofday_sec();
+l_PassTime=l_EndTime-l_StartTime;
+    ((double)(1000/FPS)>l_PassTime)?Wait((double)1000/FPS-l_PassTime):Wait(0);
+    FPSCount(&fps);
+    printf("FPS=%d\n",fps);
+#endif
+   
 }
 
 void WallRender(){
